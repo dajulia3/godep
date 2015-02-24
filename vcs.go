@@ -8,7 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/go/vcs"
+//	"golang.org/x/tools/go/vcs" 
+    "github.com/dajulia3/tools/go/vcs" //Has the vcs.FromDir fix
 )
 
 type VCS struct {
