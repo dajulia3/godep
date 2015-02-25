@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -98,6 +99,36 @@ func TestSave(t *testing.T) {
 				ImportPath: "C",
 				Deps: []Dependency{
 					{ImportPath: "D", Comment: "D1"},
+				},
+			},
+		},
+		{ // our dependency is a git submodule. Make sure we don't copy the .git file.
+			cwd: "C",
+			start: []*node{
+				{ //Want to vendor!
+					"C",
+					"",
+					[]*node{
+						{"main.go", pkg("main", "D"), nil},
+						{"+git", "", nil},
+					},
+				},
+				{
+					"D",
+					"",
+					[]*node{
+						{"+gitsubmodule", "Dmoduledir", nil},
+						{"main.go", pkg("D"), nil},
+					},
+				},
+			},
+			want: []*node{
+				{"C/Godeps/_workspace/src/D/.git", "(absent)", nil},
+			},
+			wdep: Godeps{
+				ImportPath: "C",
+				Deps: []Dependency{
+					{ImportPath: "D"},
 				},
 			},
 		},
@@ -1026,6 +1057,25 @@ func makeTree(t *testing.T, tree *node, altpath string) (gopath string) {
 			if body != "" {
 				run(t, dir, "git", "tag", body)
 			}
+		case n.path == "+gitsubmodule":
+			dir := filepath.Dir(path)
+			f, err := os.Create(filepath.Join(dir, ".git"))
+			defer f.Close()
+			if err != nil {
+				panic("error creating git submodule's .git file in test. This shouldn't have happened.")
+			}
+			submoduleParentPath := filepath.Join(filepath.Dir(dir), ".git", "modules", body)
+			os.MkdirAll(submoduleParentPath, 0770)
+			run(t, submoduleParentPath, "git", "init") // repo might already exist, but ok
+			run(t, submoduleParentPath, "git", "add", ".")
+			run(t, submoduleParentPath, "git", "commit", "-m", "cool-submodule", "--allow-empty")
+
+			gitModulePath := filepath.Join(filepath.Dir(dir), ".git", "modules", body, ".git") //TODO: don't hardcode me!
+			relpath, err := filepath.Rel(dir, gitModulePath)
+			if err != nil {
+				panic("error calculating relative path to submodule .git")
+			}
+			f.WriteString(fmt.Sprintf("gitdir: %s\n", relpath))
 		case n.entries == nil && strings.HasPrefix(body, "symlink:"):
 			target := strings.TrimPrefix(body, "symlink:")
 			os.Symlink(target, path)

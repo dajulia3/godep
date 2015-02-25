@@ -292,7 +292,7 @@ func copySrc(dir string, deps []Dependency) error {
 }
 
 func copyPkgFile(dstroot, srcroot string, w *fs.Walker) error {
-	if w.Err() != nil {
+    if w.Err() != nil {
 		return w.Err()
 	}
 	if c := w.Stat().Name()[0]; c == '.' || c == '_' {
@@ -301,7 +301,7 @@ func copyPkgFile(dstroot, srcroot string, w *fs.Walker) error {
 		// See $GOROOT/src/cmd/go/main.go:/matchPackagesInFs
 		w.SkipDir()
 	}
-	if w.Stat().IsDir() {
+	if w.Stat().IsDir() || w.Stat().Name() == ".git" { //TODO: figure out a cleaner way to do this...
 		return nil
 	}
 	rel, err := filepath.Rel(srcroot, w.Path())
